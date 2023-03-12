@@ -1,4 +1,4 @@
-package com.example.longtermbets
+package com.example.betme
 
 import io.flutter.embedding.android.FlutterActivity
 
