@@ -1,6 +1,9 @@
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'models.dart';
 
 void main() {
   // ignore: prefer_const_constructors
@@ -15,17 +18,21 @@ class App extends StatefulWidget {
   @override
   State<StatefulWidget> createState() => _AppState();
 }
-List<Text> bets = [];
-List<Text> timestamps = [];
-class _AppState extends State<App> {
+
+final prefs = SharedPreferences.getInstance();
+
+class _AppState extends State<App> with WidgetsBindingObserver {
   late TextEditingController _textController;
   
   DateTime time = DateTime.now();
+  
+  List<Bet> _bets = <Bet>[];
+
   void _showDialog(Widget child) {
     showCupertinoModalPopup<void>(
       context: context,
       builder: (BuildContext context) => Container(
-        height: 216,
+        height: 430,
         padding: const EdgeInsets.only(top: 6.0),
         margin: EdgeInsets.only(
           bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -42,57 +49,85 @@ class _AppState extends State<App> {
   void initState() {
     super.initState();
     _textController = TextEditingController();
+    _loadBets();
+    WidgetsBinding.instance.addObserver(this);
   }
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _textController.dispose();
     super.dispose();
+  }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached){
+      _saveBets();
+    }
   }
   @override
   Widget build(BuildContext context) {
     // Scaffold is a layout for
     // the major Material Components.
     return Scaffold(
-      backgroundColor: CupertinoColors.systemGroupedBackground,
-      floatingActionButton: FloatingActionButton(onPressed: () async{
+      backgroundColor: CupertinoColors.black,
+      floatingActionButton: FloatingActionButton.large(
+        onPressed: () async{
               final bet = await openDialog();
               if (bet != null){
                 setState(() {
-                  bets.add(Text(bet,key: UniqueKey(),));
-                  timestamps.add(Text("${time.day}.${time.month}.${time.year}"));
+                  _bets.add(Bet(
+                    title: bet,
+                    timestamp: "${time.day}.${time.month}.${time.year}"
+                    ));
+                  _saveBets();
+                  // bets.add(Text(bet,key: UniqueKey(),style: TextStyle(color: CupertinoColors.white),));
+                  // timestamps.add(Text("${time.day}.${time.month}.${time.year}",style: TextStyle(color: CupertinoColors.white),));
                 });
               }
-            }, child: const Icon(CupertinoIcons.add)),
+            },
+         
+        child: const Icon(CupertinoIcons.add)),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Padding(
             padding: EdgeInsets.only(left: 25.0, top: 75),
-            child: Text('Active Bets', style: TextStyle(fontSize: 32,fontWeight: FontWeight.bold),),
+            child: Text('Active Bets', style: TextStyle(fontSize: 32,fontWeight: FontWeight.bold,color: CupertinoColors.white),),
             ),
           Expanded(
             child: CupertinoScrollbar(
               child: ListView.builder(
-                itemBuilder: (BuildContext context, int index) => Dismissible(
-                  key: UniqueKey(),
-                  direction: DismissDirection.endToStart,
-                  onDismissed: (direction) => {
-                    bets.removeAt(index),
-                    timestamps.removeAt(index)
-                  },
-                  background: Container(
-                    color: Colors.red,
-                    alignment: Alignment.centerRight,
-                    child: const Padding(
-                      padding: EdgeInsets.only(right: 25.0),
-                      child: Icon(CupertinoIcons.delete_simple,color: Colors.white),
+                itemBuilder: (BuildContext context, int index) => Column(
+                  children: [
+                    Dismissible(
+                      key: UniqueKey(),
+                      direction: DismissDirection.endToStart,
+                      onDismissed: (direction) => {
+                        _bets.removeAt(index),
+                        _saveBets()
+                      },
+                      background: Container(
+                        color: Colors.red,
+                        alignment: Alignment.centerRight,
+                        child: const Padding(
+                          padding: EdgeInsets.only(right: 25.0),
+                          child: Icon(CupertinoIcons.delete_simple,color: Colors.white),
+                        )
+                        ),
+                      child: Item(
+                        bet: _bets[index]
+                        ),
+                    ),
+                    const Divider(
+                      color: CupertinoColors.lightBackgroundGray,
+                      height: 0,
+                      thickness: 0.1,
+                      indent: 50,
+                      endIndent: 0,
                     )
-                    ),
-                  child: Item(
-                    bet: bets[index],timestamp: timestamps[index],
-                    ),
+                  ],
                 ),
-                itemCount: bets.length,
+                itemCount: _bets.length,
                     
                 ),
             ),
@@ -147,52 +182,42 @@ class _AppState extends State<App> {
       _textController.clear()
     } 
   };
+  
+  Future<void> _loadBets() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? dataStr = prefs.getString('data_key');
+    if (dataStr != null) {
+      setState(() {
+        _bets = Bet.decode(dataStr);
+      });
+    } else {
+      _bets = [];
+    }
+  }
+  
+  Future<void> _saveBets() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String dataStr = Bet.encode(_bets);
+    await prefs.setString('data_key', dataStr);
+  }
 
 }
 
 class Item extends StatelessWidget {
-  final Text bet;
-  
-  final Text timestamp;
-
-  const Item({super.key, 
+  final Bet bet;
+  const Item({
+    super.key, 
     required this.bet,
-    required this.timestamp
   });
   @override
   Widget build(BuildContext context){
     return Column(
       children: [
         ListTile(
-          title: bet,
-          trailing: timestamp,
-        ),
-        const Divider()
+          title: Text(bet.title, style: const TextStyle(color: CupertinoColors.white)),
+          trailing: Text(bet.timestamp, style: const TextStyle(color: CupertinoColors.white)),
+        )
       ]
-    );
-  }
-}
-
-class Bets extends StatelessWidget {
-  const Bets({super.key, betsList});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      key: UniqueKey(),
-      scrollDirection: Axis.vertical,
-      shrinkWrap: true,
-      padding: const EdgeInsets.all(8),
-      itemCount: bets.length,
-      itemBuilder: (BuildContext context, int index){
-        return Container(
-          height: 50,
-          margin: const EdgeInsets.all(2),
-          child: Center(
-            child: bets[index]
-          ),
-        );
-      },
     );
   }
 }
