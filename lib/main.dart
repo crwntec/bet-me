@@ -50,19 +50,11 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     super.initState();
     _textController = TextEditingController();
     _loadBets();
-    WidgetsBinding.instance.addObserver(this);
   }
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _textController.dispose();
     super.dispose();
-  }
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.detached){
-      _saveBets();
-    }
   }
   @override
   Widget build(BuildContext context) {
@@ -101,12 +93,33 @@ class _AppState extends State<App> with WidgetsBindingObserver {
                   children: [
                     Dismissible(
                       key: UniqueKey(),
-                      direction: DismissDirection.endToStart,
-                      onDismissed: (direction) => {
-                        _bets.removeAt(index),
-                        _saveBets()
+                      direction: DismissDirection.horizontal,
+                      movementDuration: const Duration(milliseconds: 500),
+                      confirmDismiss: (direction) async{
+                        if (direction==DismissDirection.startToEnd){
+                          setState(() {
+                            _bets[index].isChecked = !_bets[index].isChecked;                            
+                          });
+                          _saveBets();
+                          return false;
+                        } else if(direction==DismissDirection.endToStart){
+                          setState(() {                            
+                            _bets.removeAt(index);
+                          });
+                          _saveBets();
+                          return true;
+                        }
+                        return null;
                       },
                       background: Container(
+                        color: _bets[index].isChecked ? CupertinoColors.activeOrange : CupertinoColors.activeGreen,
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 25.0),
+                          child: Icon(_bets[index].isChecked ? CupertinoIcons.clear:CupertinoIcons.check_mark, color: Colors.white),
+                        )
+                        ),
+                      secondaryBackground: Container(
                         color: Colors.red,
                         alignment: Alignment.centerRight,
                         child: const Padding(
@@ -165,8 +178,8 @@ class _AppState extends State<App> with WidgetsBindingObserver {
             ],
           ),
           actions: [
-            CupertinoButton(child: const Text("Add"), onPressed: () => handleSubmit(context)),
-            CupertinoButton(
+            CupertinoDialogAction(child: const Text("Add"), onPressed: () => handleSubmit(context)),
+            CupertinoDialogAction(
               child: const Text(style: TextStyle(color: Colors.red),"Cancel"),
               onPressed: () => { Navigator.of(context).pop(), _textController.clear()},
             )
@@ -214,6 +227,15 @@ class Item extends StatelessWidget {
     return Column(
       children: [
         ListTile(
+          leading: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 5),
+                child: Icon(CupertinoIcons.check_mark, color: bet.isChecked ? Colors.green : Colors.grey, size: 15),
+              )
+              ]
+          ),
           title: Text(bet.title, style: const TextStyle(color: CupertinoColors.white)),
           trailing: Text(bet.timestamp, style: const TextStyle(color: CupertinoColors.white)),
         )

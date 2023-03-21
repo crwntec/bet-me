@@ -2,21 +2,25 @@ import 'dart:convert';
 class Bet {
   final String title;
   final String timestamp;
+  bool isChecked = false;
 
   Bet({
     required this.title,
-    required this.timestamp
+    required this.timestamp,
+    isChecked = false
   });
 
   factory Bet.fromJson(Map<String, dynamic> jsonData) {
     return Bet(
       title: jsonData['title'],
-      timestamp: jsonData['timestamp']
+      timestamp: jsonData['timestamp'],
+      isChecked: jsonData['isChecked']
     );
   }
   static Map<String, dynamic> toMap(Bet bet) => {
     'title': bet.title,
-    'timestamp': bet.timestamp
+    'timestamp': bet.timestamp,
+    'isChecked': bet.isChecked
   };
   static String encode(List<Bet> bets) => json.encode(
     bets
